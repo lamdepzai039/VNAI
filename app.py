@@ -200,8 +200,19 @@ def get_fallback_ai(user_message, history_list):
 # --- Routes ---
 @app.route("/")
 def index():
-    if 'user_id' not in flask_session: return render_template("login.html")
-    return render_template("index.html", user_name=flask_session.get('user_name'))
+    try:
+        if 'user_id' not in flask_session: return render_template("login.html")
+        return render_template("index.html", user_name=flask_session.get('user_name'))
+    except Exception as e:
+        return f"Lỗi Render Template: {str(e)}", 500
+
+@app.route("/ping")
+def ping():
+    return "VNAI Server is Running!", 200
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return f"VNAI Flask 404: Không tìm thấy đường dẫn này -> {request.path}", 404
 
 @app.route("/login", methods=["POST"])
 def login():
