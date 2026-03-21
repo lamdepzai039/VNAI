@@ -13,6 +13,9 @@ from openai import OpenAI
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '.env'))
 
+print("--- VNAI: HE THONG DANG KHOI DONG ---")
+print(f"--- VNAI: PORT DUOC CAP = {os.environ.get('PORT')} ---")
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret-key-123")
 

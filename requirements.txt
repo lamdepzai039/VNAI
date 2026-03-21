@@ -29,7 +29,7 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 jiter==0.13.0
 MarkupSafe==3.0.3
-openai==2.29.0
+openai>=1.0.0
 pillow==12.1.1
 proto-plus==1.27.1
 protobuf==5.29.6
