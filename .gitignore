@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+*.db
+instance/
+.DS_Store
+LINK_TRUY_CAP_AI.txt

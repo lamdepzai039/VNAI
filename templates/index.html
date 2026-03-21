@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant - ChatGPT Style</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for syntax highlighting (VS Code style) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Puter.js v2 -->
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+<body class="dark-theme">
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="splash-logo-container">
+                <h1 class="splash-logo">VNAI</h1>
+            </div>
+            <div class="splash-loader"></div>
+            <p class="splash-subtitle">Premium AI Assistant</p>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fab fa-openai logo-icon-sidebar"></i>
+                <button class="sidebar-toggle-btn" id="sidebar-toggle-main">
+                    <i class="fas fa-columns"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-nav">
+                <div class="nav-item" id="new-chat-btn-sidebar"><i class="far fa-edit"></i> <span>Đoạn chat mới</span></div>
+                <div class="nav-item"><i class="fas fa-search"></i> <span>Tìm kiếm đoạn chat</span></div>
+                <div class="nav-item" id="nav-image-gen"><i class="far fa-image"></i> <span>Ảnh</span></div>
+                <div class="nav-item"><i class="fas fa-th-large"></i> <span>Ứng dụng</span></div>
+                <div class="nav-item"><i class="fas fa-telescope"></i> <span>Nghiên cứu chuyên sâu</span></div>
+                <div class="nav-item"><i class="fas fa-brain"></i> <span>Codex</span></div>
+                <div class="nav-item active-nav-highlight" id="add-project-btn"><i class="fas fa-folder-plus"></i> <span>Dự án</span></div>
+                
+                <div class="nav-section-title">GPT</div>
+                <div class="nav-item"><i class="fas fa-graduation-cap"></i> <span>PTNK Tutor</span></div>
+                <div class="nav-item"><i class="fas fa-cube"></i> <span>Khám phá GPT</span></div>
+                
+                <div class="nav-section-title">Các đoạn chat của bạn</div>
+                <div id="project-list-container" style="display: none;"></div> <!-- Keep for script compatibility -->
+                <div class="history-list" id="history-list">
+                    <!-- History items will be loaded here -->
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="user-profile-container">
+                    <div class="user-profile-info">
+                        <div class="avatar">{{ user_name[0] }}</div>
+                        <div class="user-name-status">
+                            <span class="user-name-text">{{ user_name }}</span>
+                            <span class="user-status-text">Free</span>
+                        </div>
+                    </div>
+                    <button class="upgrade-sidebar-btn">Nâng cấp</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <header class="chat-header">
+                <div class="header-left">
+                    <div class="model-selector-container">
+                        <button class="model-selector-btn" id="model-selector-btn">
+                            <span>ChatGPT 4o</span> <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="model-dropdown" id="model-dropdown">
+                            <div class="model-option active" data-model="gpt">
+                                <div class="model-info">
+                                    <div class="model-name">ChatGPT 4o</div>
+                                    <div class="model-desc">Thông minh, sáng tạo và đa năng</div>
+                                </div>
+                                <i class="fas fa-check check-icon"></i>
+                            </div>
+                            <div class="model-option" data-model="gemini">
+                                <div class="model-info">
+                                    <div class="model-name">Gemini Pro</div>
+                                    <div class="model-desc">Phân tích sâu, lập trình giỏi</div>
+                                </div>
+                                <i class="fas fa-check check-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-center">
+                    <button class="upgrade-btn-header">
+                        <i class="fas fa-sparkles"></i> <span>Dùng bản Plus</span>
+                    </button>
+                </div>
+                <div class="header-right">
+                    <button class="header-icon-btn" id="header-group-btn" title="Liên kết nhóm">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <button class="header-icon-btn" id="header-settings-btn" title="Cài đặt">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <button class="header-icon-btn" title="Toàn màn hình">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div id="chat-box" class="chat-messages">
+                <!-- Welcome screen will be shown when no messages -->
+                <div class="welcome-container" id="welcome-container">
+                    <h1 class="welcome-title">Chúng ta nên bắt đầu từ đâu?</h1>
+                </div>
+            </div>
+
+            <footer class="chat-input-container">
+                <div class="input-wrapper">
+                    <div class="upload-menu-container">
+                        <button class="attach-btn" id="upload-menu-btn">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <div class="upload-menu" id="upload-menu">
+                            <div class="menu-item" onclick="document.getElementById('file-input').click()">
+                                <i class="fas fa-paperclip"></i> <span>Thêm ảnh và tệp</span>
+                            </div>
+                            <div class="menu-item" onclick="navImageGen.click()">
+                                <i class="far fa-image"></i> <span>Tạo hình ảnh</span>
+                            </div>
+                            <div class="menu-item">
+                                <i class="far fa-lightbulb"></i> <span>Đang suy nghĩ</span>
+                            </div>
+                            <div class="menu-item">
+                                <i class="fas fa-telescope"></i> <span>Nghiên cứu chuyên sâu</span>
+                            </div>
+                            <div class="menu-item">
+                                <i class="fas fa-shopping-bag"></i> <span>Nghiên cứu mua sắm</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-item">
+                                <i class="fas fa-ellipsis-h"></i> <span>Thêm</span> <i class="fas fa-chevron-right ml-auto"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="image-preview-container" class="image-preview-container" style="display: none;">
+                        <img id="image-preview" src="" alt="Preview">
+                        <button id="remove-image-btn" class="remove-image-btn"><i class="fas fa-times"></i></button>
+                    </div>
+                    <input type="file" id="file-input" style="display: none;" accept="image/*">
+                    <textarea id="user-input" placeholder="Hỏi bất kỳ điều gì..." rows="1"></textarea>
+                    <div class="input-actions">
+                        <button class="mic-btn"><i class="fas fa-microphone"></i></button>
+                        <button id="send-btn" class="send-btn"><i class="fas fa-arrow-up"></i></button>
+                    </div>
+                </div>
+                <p class="disclaimer">AI có thể đưa ra câu trả lời không chính xác. Hãy kiểm tra những thông tin quan trọng.</p>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Group Link Modal -->
+    <div class="modal-overlay" id="group-modal">
+        <div class="group-modal">
+            <div class="group-modal-header">
+                <h2>Liên kết nhóm</h2>
+            </div>
+            <div class="group-modal-body">
+                <div class="link-input-container">
+                    <input type="text" readonly value="https://vnai.com/gg/v/69bfc94e8da88199977aa1400c8..." class="group-link-input">
+                    <button class="link-more-btn"><i class="fas fa-ellipsis-h"></i></button>
+                </div>
+                <p class="group-modal-desc">
+                    Sử dụng liên kết nhóm để mời người khác tham gia đoạn chat nhóm của bạn. 
+                    Bất kỳ ai cũng có thể tham gia đoạn chat nhóm qua liên kết này và họ sẽ có thể xem các tin nhắn trước đó trong đoạn chat nhóm này.
+                </p>
+            </div>
+            <div class="group-modal-footer">
+                <button class="group-btn-cancel" id="close-group-modal">Hủy</button>
+                <button class="group-btn-copy">Sao chép liên kết</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="modal-overlay" id="search-modal">
+        <div class="search-modal">
+            <div class="search-input-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-chat-input" placeholder="Tìm kiếm đoạn chat..." autocomplete="off">
+                <span class="search-shortcut-hint">ESC</span>
+            </div>
+            <div class="search-results" id="search-results">
+                <!-- Search results will appear here -->
+                <div class="search-no-results">Nhập từ khóa để tìm kiếm...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deep Research Modal -->
+    <div class="modal-overlay" id="deep-research-modal">
+        <div class="feature-modal deep-research-modal">
+            <div class="feature-modal-header">
+                <div class="feature-icon"><i class="fas fa-telescope"></i></div>
+                <h2>Deep Research</h2>
+                <button class="close-modal" onclick="closeModal('deep-research-modal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="feature-modal-body">
+                <div class="deep-research-hero">
+                    <h1>Nghiên cứu chuyên sâu với AI</h1>
+                    <p>ChatGPT sẽ lướt web, phân tích dữ liệu và viết báo cáo chi tiết cho bạn.</p>
+                </div>
+                <div class="feature-input-group">
+                    <textarea id="deep-research-input" placeholder="Bạn muốn nghiên cứu về chủ đề gì? (VD: Tương lai của AI trong y tế)"></textarea>
+                    <button class="feature-action-btn" onclick="startDeepResearch()">Bắt đầu nghiên cứu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Codex Modal -->
+    <div class="modal-overlay" id="codex-modal">
+        <div class="feature-modal codex-modal">
+            <div class="feature-modal-header">
+                <div class="feature-icon"><i class="fas fa-brain"></i></div>
+                <h2>Codex</h2>
+                <button class="close-modal" onclick="closeModal('codex-modal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="feature-modal-body">
+                <div class="codex-hero">
+                    <h1>The best way to build with agents</h1>
+                    <p>Codex reliably completes tasks end to end, like building features, complex refactors, and more.</p>
+                </div>
+                <div class="codex-grid">
+                    <div class="codex-card" onclick="useCodex('Build features')">
+                        <i class="fas fa-code"></i>
+                        <h3>Build features</h3>
+                    </div>
+                    <div class="codex-card" onclick="useCodex('Write tests')">
+                        <i class="fas fa-vial"></i>
+                        <h3>Write tests</h3>
+                    </div>
+                    <div class="codex-card" onclick="useCodex('Fix bugs')">
+                        <i class="fas fa-bug"></i>
+                        <h3>Fix bugs</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Apps Modal -->
+    <div class="modal-overlay" id="apps-modal">
+        <div class="feature-modal apps-modal">
+            <div class="feature-modal-header">
+                <div class="feature-icon"><i class="fas fa-th-large"></i></div>
+                <h2>Ứng dụng</h2>
+                <button class="close-modal" onclick="closeModal('apps-modal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="feature-modal-body">
+                <div class="apps-search">
+                    <input type="text" placeholder="Tìm kiếm ứng dụng...">
+                </div>
+                <div class="apps-list">
+                    <div class="app-item-card" onclick="useApp('DALL-E')">
+                        <div class="app-icon" style="background: #10a37f;"><i class="fab fa-openai"></i></div>
+                        <div class="app-details">
+                            <h3>DALL-E</h3>
+                            <p>Tạo hình ảnh thực tế từ mô tả văn bản.</p>
+                        </div>
+                    </div>
+                    <div class="app-item-card" onclick="useApp('Data Analyst')">
+                        <div class="app-icon" style="background: #4b90ff;"><i class="fas fa-chart-line"></i></div>
+                        <div class="app-details">
+                            <h3>Data Analyst</h3>
+                            <p>Phân tích và trực quan hóa dữ liệu của bạn.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="settings-modal">
+            <aside class="settings-sidebar">
+                <div class="settings-menu-item active" data-tab="general">
+                    <i class="fas fa-cog"></i> <span>Chung</span>
+                </div>
+                <div class="settings-menu-item" data-tab="personalization">
+                    <i class="fas fa-magic"></i> <span>Cá nhân hóa</span>
+                </div>
+                <div class="settings-menu-item" data-tab="speech">
+                    <i class="fas fa-microphone"></i> <span>Giọng nói</span>
+                </div>
+                <div class="settings-menu-item" data-tab="data">
+                    <i class="fas fa-database"></i> <span>Kiểm soát dữ liệu</span>
+                </div>
+                <div class="settings-menu-item" data-tab="builder">
+                    <i class="fas fa-tools"></i> <span>Hồ sơ Builder</span>
+                </div>
+                <div class="settings-menu-item" data-tab="account">
+                    <i class="fas fa-user-circle"></i> <span>Tài khoản</span>
+                </div>
+                <div class="settings-menu-item" data-tab="security">
+                    <i class="fas fa-shield-alt"></i> <span>Bảo mật</span>
+                </div>
+            </aside>
+            <main class="settings-content" id="settings-content">
+                <div class="settings-header">
+                    <h2>Cài đặt</h2>
+                    <button class="close-settings" id="close-settings"><i class="fas fa-times"></i></button>
+                </div>
+                
+                <div class="tab-content" id="general-tab">
+                    <div class="setting-group">
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <span class="setting-label">Giao diện</span>
+                                <span class="setting-desc">Thay đổi màu sắc chủ đạo của ứng dụng</span>
+                            </div>
+                            <div class="setting-control">
+                                <select id="theme-select">
+                                    <option value="dark">Tối (Mặc định)</option>
+                                    <option value="light">Sáng</option>
+                                    <option value="system">Hệ thống</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <span class="setting-label">Màu điểm nhấn</span>
+                                <span class="setting-desc">Chọn màu sắc cho các nút và biểu tượng</span>
+                            </div>
+                            <div class="setting-control">
+                                <select id="accent-select">
+                                    <option value="default">Mặc định (Xanh)</option>
+                                    <option value="purple">Tím</option>
+                                    <option value="gold">Vàng</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <span class="setting-label">Ngôn ngữ</span>
+                                <span class="setting-desc">Chọn ngôn ngữ hiển thị</span>
+                            </div>
+                            <div class="setting-control">
+                                <select id="lang-select">
+                                    <option value="vi">Tiếng Việt</option>
+                                    <option value="en">English</option>
+                                    <option value="zh">中文 (Chinese)</option>
+                                    <option value="ja">日本語 (Japanese)</option>
+                                    <option value="ko">한국어 (Korean)</option>
+                                    <option value="fr">Français (French)</option>
+                                    <option value="de">Deutsch (German)</option>
+                                    <option value="es">Español (Spanish)</option>
+                                    <option value="ru">Русский (Russian)</option>
+                                    <option value="pt">Português (Portuguese)</option>
+                                    <option value="it">Italiano (Italian)</option>
+                                    <option value="ar">العربية (Arabic)</option>
+                                    <option value="hi">हिन्दी (Hindi)</option>
+                                    <option value="bn">বাংলা (Bengali)</option>
+                                    <option value="tr">Türkçe (Turkish)</option>
+                                    <option value="nl">Nederlands (Dutch)</option>
+                                    <option value="pl">Polski (Polish)</option>
+                                    <option value="sv">Svenska (Swedish)</option>
+                                    <option value="th">ไทย (Thai)</option>
+                                    <option value="id">Bahasa Indonesia</option>
+                                    <option value="ms">Bahasa Melayu</option>
+                                    <option value="cs">Čeština (Czech)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                <div class="tab-content" id="personalization-tab" style="display: none;">
+                    <div class="setting-section-header">Hướng dẫn tùy chỉnh</div>
+                    <div class="setting-input-group">
+                        <textarea class="setting-textarea" id="custom-instructions" placeholder="Tùy chỉnh thêm về hành vi, phong cách và giọng điệu của AI..."></textarea>
+                    </div>
+
+                    <div class="setting-section-header">Thông tin về bạn</div>
+                    <div class="setting-input-group">
+                        <label>Biệt danh</label>
+                        <input type="text" class="setting-input" id="user-nickname" placeholder="ChatGPT nên gọi bạn là gì?">
+                    </div>
+                    <div class="setting-input-group">
+                        <label>Nghề nghiệp</label>
+                        <input type="text" class="setting-input" id="user-job" placeholder="Ví dụ: Lập trình viên, Luật sư gia đình...">
+                    </div>
+                    <div class="setting-input-group">
+                        <label>Thêm thông tin về bạn</label>
+                        <textarea class="setting-textarea" id="user-bio" placeholder="Sở thích, giá trị hoặc những điểm ưu tiên khi trò chuyện?"></textarea>
+                    </div>
+
+                    <div class="setting-section-header">Phong cách và giọng điệu cơ bản</div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <span class="setting-label">Giọng điệu phản hồi</span>
+                        </div>
+                        <div class="setting-control">
+                            <select id="ai-tone-select">
+                                <option value="default">Mặc định</option>
+                                <option value="professional">Chuyên nghiệp</option>
+                                <option value="friendly">Thân thiện</option>
+                                <option value="direct">Thẳng thắn</option>
+                                <option value="creative">Cá tính</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- History Context Menu -->
+    <div id="history-context-menu" class="history-context-menu">
+        <div class="history-menu-item" onclick="handleMenuAction('share')">
+            <i class="fas fa-upload"></i> <span>Chia sẻ</span>
+        </div>
+        <div class="history-menu-item" onclick="handleMenuAction('group')">
+            <i class="fas fa-user-plus"></i> <span>Bắt đầu đoạn chat nhóm</span>
+        </div>
+        <div class="history-menu-item" onclick="handleMenuAction('rename')">
+            <i class="fas fa-pen"></i> <span>Đổi tên</span>
+        </div>
+        <div class="history-menu-item" onclick="handleMenuAction('move')">
+            <i class="fas fa-folder"></i> <span>Di chuyển sang dự án</span> <i class="fas fa-chevron-right ml-auto" style="font-size: 0.7rem;"></i>
+        </div>
+        <div class="history-menu-divider"></div>
+        <div class="history-menu-item" onclick="handleMenuAction('pin')">
+            <i class="fas fa-thumbtack"></i> <span>Ghim đoạn chat</span>
+        </div>
+        <div class="history-menu-item" onclick="handleMenuAction('archive')">
+            <i class="fas fa-archive"></i> <span>Lưu trữ</span>
+        </div>
+        <div class="history-menu-item delete-item" onclick="handleMenuAction('delete')">
+            <i class="fas fa-trash"></i> <span>Xóa</span>
+        </div>
+    </div>
+
+    <script>
+        // Splash Screen Logic
+        window.addEventListener('load', () => {
+            const splashScreen = document.getElementById('splash-screen');
+            // Đảm bảo splash screen hiển thị ít nhất 2.5 giây để hiệu ứng hoàn tất
+            setTimeout(() => {
+                splashScreen.classList.add('fade-out');
+                // Xóa hoàn toàn khỏi DOM sau khi hiệu ứng fade out kết thúc
+                setTimeout(() => {
+                    splashScreen.remove();
+                }, 800);
+            }, 2500);
+        });
+
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const newChatBtn = document.getElementById('new-chat-btn-sidebar');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.querySelector('.user-profile-container');
+        const uploadMenuBtn = document.getElementById('upload-menu-btn');
+        const uploadMenu = document.getElementById('upload-menu');
+        const modelSelectorBtn = document.getElementById('model-selector-btn');
+        const modelDropdown = document.getElementById('model-dropdown');
+        const modelOptions = document.querySelectorAll('.model-option');
+        const historyList = document.getElementById('history-list');
+        const inputWrapper = document.querySelector('.input-wrapper');
+        
+        // Settings elements
+        const settingsModal = document.getElementById('settings-modal');
+        const navSettings = document.getElementById('header-settings-btn');
+        const closeSettings = document.getElementById('close-settings');
+        const themeSelect = document.getElementById('theme-select');
+        const navImageGen = document.getElementById('nav-image-gen');
+        const accentSelect = document.getElementById('accent-select');
+        
+        // Custom Personalization & Projects
+        const personalizationTab = document.getElementById('personalization-tab');
+        const generalTab = document.getElementById('general-tab');
+        const settingsMenuItems = document.querySelectorAll('.settings-menu-item');
+        const projectListContainer = document.getElementById('project-list-container');
+        const addProjectBtn = document.getElementById('add-project-btn');
+        
+        // Image Handling Elements
+        const fileInput = document.getElementById('file-input');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+        let selectedImageBase64 = null;
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    selectedImageBase64 = event.target.result;
+                    imagePreview.src = selectedImageBase64;
+                    imagePreviewContainer.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        removeImageBtn.addEventListener('click', () => {
+            selectedImageBase64 = null;
+            imagePreview.src = '';
+            imagePreviewContainer.style.display = 'none';
+            fileInput.value = '';
+        });
+
+        // Personalization fields
+        const customInstructions = document.getElementById('custom-instructions');
+        const userNickname = document.getElementById('user-nickname');
+        const userJob = document.getElementById('user-job');
+        const userBio = document.getElementById('user-bio');
+        const aiToneSelect = document.getElementById('ai-tone-select');
+
+        let currentConversationId = null;
+        let selectedModel = 'gpt'; // Default model
+
+        // Load & Save Personalization
+        function loadPersonalization() {
+            const data = JSON.parse(localStorage.getItem('vnai_personalization') || '{}');
+            customInstructions.value = data.instructions || '';
+            userNickname.value = data.nickname || '';
+            userJob.value = data.job || '';
+            userBio.value = data.bio || '';
+            aiToneSelect.value = data.tone || 'default';
+        }
+
+        function savePersonalization() {
+            const data = {
+                instructions: customInstructions.value,
+                nickname: userNickname.value,
+                job: userJob.value,
+                bio: userBio.value,
+                tone: aiToneSelect.value
+            };
+            localStorage.setItem('vnai_personalization', JSON.stringify(data));
+        }
+
+        [customInstructions, userNickname, userJob, userBio, aiToneSelect].forEach(el => {
+            el.addEventListener('change', savePersonalization);
+            el.addEventListener('input', savePersonalization);
+        });
+
+        loadPersonalization();
+
+        // Settings Logic
+        // Tab switching logic
+        settingsMenuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                settingsMenuItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                
+                const tab = item.dataset.tab;
+                generalTab.style.display = tab === 'general' ? 'block' : 'none';
+                personalizationTab.style.display = tab === 'personalization' ? 'block' : 'none';
+                // Other tabs can be added here
+            });
+        });
+
+        // Project Logic
+        let projects = JSON.parse(localStorage.getItem('vnai_projects') || '[]');
+        
+        if (projects.length === 0 && !localStorage.getItem('vnai_projects_initialized')) {
+            projects = []; // Trống hoàn toàn theo yêu cầu
+            localStorage.setItem('vnai_projects', JSON.stringify(projects));
+            localStorage.setItem('vnai_projects_initialized', 'true');
+        }
+
+        function renderProjects() {
+            projectListContainer.innerHTML = '';
+            projects.forEach((proj, index) => {
+                const div = document.createElement('div');
+                div.className = 'project-item';
+                div.innerHTML = `
+                    <div class="project-info" onclick="selectProject('${proj}')">
+                        <i class="fas fa-folder"></i> 
+                        <span class="project-name">${proj}</span>
+                    </div>
+                    <div class="project-actions">
+                        <i class="fas fa-pen edit-project" onclick="editProject(${index}, event)"></i>
+                        <i class="fas fa-trash delete-project" onclick="deleteProject(${index}, event)"></i>
+                    </div>
+                `;
+                projectListContainer.appendChild(div);
+            });
+        }
+
+        window.selectProject = (name) => {
+            userInput.value = `[Dự án: ${name}] `;
+            userInput.focus();
+        };
+
+        window.editProject = (index, event) => {
+            event.stopPropagation();
+            const newName = window.prompt("Sửa tên dự án:", projects[index]);
+            if (newName && newName.trim()) {
+                projects[index] = newName.trim();
+                localStorage.setItem('vnai_projects', JSON.stringify(projects));
+                renderProjects();
+            }
+        };
+
+        window.deleteProject = (index, event) => {
+            event.stopPropagation();
+            if (confirm(`Bạn có chắc muốn xóa dự án "${projects[index]}"?`)) {
+                projects.splice(index, 1);
+                localStorage.setItem('vnai_projects', JSON.stringify(projects));
+                renderProjects();
+            }
+        };
+
+        addProjectBtn.addEventListener('click', () => {
+            const name = window.prompt("Nhập tên dự án mới:");
+            if (name && name.trim()) {
+                const trimmedName = name.trim();
+                if (projects.includes(trimmedName)) {
+                    alert("Tên dự án này đã tồn tại!");
+                    return;
+                }
+                projects.push(trimmedName);
+                localStorage.setItem('vnai_projects', JSON.stringify(projects));
+                renderProjects();
+            }
+        });
+
+        renderProjects();
+        closeSettings.addEventListener('click', () => settingsModal.classList.remove('show'));
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) settingsModal.classList.remove('show');
+        });
+
+        themeSelect.addEventListener('change', (e) => {
+            const theme = e.target.value;
+            document.body.className = theme === 'light' ? 'light-theme' : 'dark-theme';
+            if (theme === 'system') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.body.className = isDark ? 'dark-theme' : 'light-theme';
+            }
+        });
+
+        accentSelect.addEventListener('change', (e) => {
+            const accent = e.target.value;
+            const root = document.documentElement;
+            if (accent === 'purple') {
+                root.style.setProperty('--accent-color', '#8e44ad');
+            } else if (accent === 'gold') {
+                root.style.setProperty('--accent-color', '#f1c40f');
+            } else {
+                root.style.setProperty('--accent-color', '#10a37f');
+            }
+        });
+
+        navImageGen.addEventListener('click', () => {
+            const prompt = window.prompt("Mô tả hình ảnh bạn muốn tạo:");
+            if (prompt) generateImage(prompt);
+        });
+
+        const historyContextMenu = document.getElementById('history-context-menu');
+        let activeMenuHistoryId = null;
+
+        // Load History on startup
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                if (response.status === 401) {
+                    window.location.href = '/';
+                    return;
+                }
+                const history = await response.json();
+                historyList.innerHTML = '';
+                history.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = `history-item ${currentConversationId === item.id ? 'active' : ''}`;
+                    div.dataset.id = item.id;
+                    
+                    div.innerHTML = `
+                        <div class="history-item-info" onclick="loadConversation(${item.id})">
+                            <i class="far fa-comment-alt"></i> 
+                            <span class="history-item-title">${item.title}</span>
+                        </div>
+                        <div class="history-item-actions">
+                            <button class="history-item-menu-btn" onclick="toggleHistoryMenu(event, ${item.id})">
+                                <i class="fas fa-ellipsis-h"></i>
+                            </button>
+                        </div>
+                    `;
+                    historyList.appendChild(div);
+                });
+            } catch (error) {
+                console.error("Error loading history:", error);
+            }
+        }
+
+        window.toggleHistoryMenu = (event, id) => {
+            event.stopPropagation();
+            const btn = event.currentTarget;
+            const rect = btn.getBoundingClientRect();
+            
+            // Close if already open for same ID
+            if (activeMenuHistoryId === id && historyContextMenu.classList.contains('show')) {
+                historyContextMenu.classList.remove('show');
+                activeMenuHistoryId = null;
+                return;
+            }
+
+            activeMenuHistoryId = id;
+            historyContextMenu.style.top = `${rect.bottom + 5}px`;
+            historyContextMenu.style.left = `${rect.left - 200}px`;
+            historyContextMenu.classList.add('show');
+
+            // Add class to item for persistent hover
+            document.querySelectorAll('.history-item').forEach(el => el.classList.remove('menu-open'));
+            btn.closest('.history-item').classList.add('menu-open');
+        };
+
+        window.handleMenuAction = async (action) => {
+            if (!activeMenuHistoryId) return;
+            
+            const id = activeMenuHistoryId;
+            historyContextMenu.classList.remove('show');
+            document.querySelectorAll('.history-item').forEach(el => el.classList.remove('menu-open'));
+
+            if (action === 'delete') {
+                if (confirm("Bạn có chắc muốn xóa đoạn chat này?")) {
+                    try {
+                        const response = await fetch(`/delete_conversation/${id}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            if (currentConversationId === id) {
+                                currentConversationId = null;
+                                chatBox.innerHTML = '<div class="message ai-message"><div class="message-content">Chào bạn! Tôi là trợ lý AI thông minh. Tôi có thể giúp gì cho bạn hôm nay?</div></div>';
+                            }
+                            loadHistory();
+                        }
+                    } catch (e) { console.error("Error deleting conversation:", e); }
+                }
+            } else if (action === 'rename') {
+                const newTitle = window.prompt("Nhập tên mới cho đoạn chat:");
+                if (newTitle && newTitle.trim()) {
+                    try {
+                        const response = await fetch(`/rename_conversation/${id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: newTitle.trim() })
+                        });
+                        if (response.ok) loadHistory();
+                    } catch (e) { console.error("Error renaming conversation:", e); }
+                }
+            } else if (action === 'move') {
+                if (projects.length === 0) {
+                    alert("Bạn chưa có dự án nào để di chuyển vào!");
+                    return;
+                }
+                const projList = projects.join("\n- ");
+                const targetProj = window.prompt(`Nhập tên dự án muốn di chuyển vào:\n- ${projList}`);
+                if (targetProj && projects.includes(targetProj.trim())) {
+                    alert(`Đã di chuyển đoạn chat sang dự án: ${targetProj.trim()}`);
+                    // Logic di chuyển thực tế có thể thêm vào DB sau
+                }
+            } else {
+                alert(`Tính năng "${action}" đang được phát triển!`);
+            }
+            
+            activeMenuHistoryId = null;
+        };
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!historyContextMenu.contains(e.target)) {
+                historyContextMenu.classList.remove('show');
+                document.querySelectorAll('.history-item').forEach(el => el.classList.remove('menu-open'));
+                activeMenuHistoryId = null;
+            }
+        });
+
+        async function loadConversation(id) {
+            currentConversationId = id;
+            loadHistory(); // update active class
+            if (welcomeContainer) welcomeContainer.style.display = 'none';
+            try {
+                const response = await fetch(`/messages/${id}`);
+                const messages = await response.json();
+                chatBox.innerHTML = '';
+                messages.forEach(msg => {
+                    appendMessage(msg.content, msg.role === 'user');
+                });
+            } catch (error) {
+                console.error("Error loading messages:", error);
+            }
+        }
+
+        loadHistory();
+
+        // Toggle Model Dropdown
+        modelSelectorBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            modelDropdown.classList.toggle('show');
+        });
+
+        // Select Model
+        modelOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                modelOptions.forEach(opt => opt.classList.remove('active'));
+                option.classList.add('active');
+                selectedModel = option.dataset.model;
+                modelSelectorBtn.querySelector('span').textContent = option.querySelector('.model-name').textContent;
+                modelDropdown.classList.remove('show');
+            });
+        });
+
+        // Toggle Upload Menu
+        uploadMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            uploadMenu.classList.toggle('show');
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', () => {
+            uploadMenu.classList.remove('show');
+            modelDropdown.classList.remove('show');
+        });
+
+        // Configure marked options with highlight.js
+        const renderer = new marked.Renderer();
+        
+        // Custom renderer for code blocks to add "Copy" button and VS Code look
+        renderer.code = (codeObj, language) => {
+            // marked v4+ passes an object, older versions pass a string
+            const code = typeof codeObj === 'object' ? codeObj.text : codeObj;
+            const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
+            const highlightedCode = hljs.highlight(code, { language: validLanguage }).value;
+            
+            return `
+                <div class="code-block-container">
+                    <div class="code-block-header">
+                        <span class="code-lang">${validLanguage}</span>
+                        <button class="copy-code-btn" onclick="copyCode(this)">
+                            <i class="far fa-copy"></i> Sao chép
+                        </button>
+                    </div>
+                    <pre><code class="hljs language-${validLanguage}">${highlightedCode}</code></pre>
+                </div>
+            `;
+        };
+
+        marked.setOptions({
+            renderer: renderer,
+            breaks: true,
+            gfm: true,
+            headerIds: false,
+            mangle: false
+        });
+
+        // Copy Code Function
+        window.copyCode = (btn) => {
+            const codeBlock = btn.closest('.code-block-container').querySelector('code');
+            const text = codeBlock.innerText;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Đã sao chép!';
+                btn.classList.add('copied');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        };
+
+        // Auto-resize textarea
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+
+        const headerSettingsBtn = document.getElementById('header-settings-btn');
+        const headerGroupBtn = document.getElementById('header-group-btn');
+        const groupModal = document.getElementById('group-modal');
+        const closeGroupModal = document.getElementById('close-group-modal');
+        const welcomeContainer = document.getElementById('welcome-container');
+        
+        // New Feature Modals
+        const searchModal = document.getElementById('search-modal');
+        const searchInput = document.getElementById('search-chat-input');
+        const searchResults = document.getElementById('search-results');
+        const deepResearchModal = document.getElementById('deep-research-modal');
+        const codexModal = document.getElementById('codex-modal');
+        const appsModal = document.getElementById('apps-modal');
+
+        // Search Logic
+        function openSearchModal() {
+            searchModal.classList.add('show');
+            searchInput.focus();
+        }
+
+        function closeSearchModal() {
+            searchModal.classList.remove('show');
+            searchInput.value = '';
+            searchResults.innerHTML = '<div class="search-no-results">Nhập từ khóa để tìm kiếm...</div>';
+        }
+
+        searchInput.addEventListener('input', async (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            if (query.length < 2) {
+                searchResults.innerHTML = '<div class="search-no-results">Nhập từ khóa để tìm kiếm...</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/history');
+                const history = await response.json();
+                const filtered = history.filter(item => item.title.toLowerCase().includes(query));
+                
+                if (filtered.length === 0) {
+                    searchResults.innerHTML = '<div class="search-no-results">Không tìm thấy đoạn chat nào.</div>';
+                } else {
+                    searchResults.innerHTML = '';
+                    filtered.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'search-result-item';
+                        div.innerHTML = `
+                            <i class="far fa-comment-alt"></i>
+                            <span class="search-result-title">${item.title}</span>
+                        `;
+                        div.onclick = () => {
+                            loadConversation(item.id);
+                            closeSearchModal();
+                        };
+                        searchResults.appendChild(div);
+                    });
+                }
+            } catch (err) {
+                console.error("Search error:", err);
+            }
+        });
+
+        // Close search on ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeSearchModal();
+                closeModal('deep-research-modal');
+                closeModal('codex-modal');
+                closeModal('apps-modal');
+            }
+        });
+
+        window.closeModal = (id) => {
+            document.getElementById(id).classList.remove('show');
+        };
+
+        // Codex Functionality
+        window.useCodex = (task) => {
+            closeModal('codex-modal');
+            userInput.value = `[Codex: ${task}] `;
+            userInput.focus();
+            // Automatically switch model to gpt for better coding
+            selectedModel = 'gpt';
+            modelSelectorBtn.querySelector('span').textContent = 'ChatGPT 4o';
+        };
+
+        // Apps Functionality
+        window.useApp = (appName) => {
+            closeModal('apps-modal');
+            userInput.value = `[App: ${appName}] `;
+            userInput.focus();
+            if (appName === 'DALL-E') {
+                userInput.placeholder = "Mô tả hình ảnh bạn muốn tạo...";
+            }
+        };
+
+        // Deep Research Functionality
+        window.startDeepResearch = async () => {
+            const researchInput = document.getElementById('deep-research-input');
+            const topic = researchInput.value.trim();
+            if (!topic) return;
+
+            closeModal('deep-research-modal');
+            userInput.value = `[Deep Research] ${topic}`;
+            sendMessage();
+            researchInput.value = '';
+        };
+
+        // Sidebar Feature Items Click
+        document.querySelector('.sidebar-nav').addEventListener('click', (e) => {
+            const navItem = e.target.closest('.nav-item');
+            if (!navItem) return;
+            
+            const text = navItem.querySelector('span').textContent;
+            
+            // Handle active features
+            if (text === 'Tìm kiếm đoạn chat') {
+                openSearchModal();
+                return;
+            }
+            if (text === 'Nghiên cứu chuyên sâu') {
+                deepResearchModal.classList.add('show');
+                return;
+            }
+            if (text === 'Codex') {
+                codexModal.classList.add('show');
+                return;
+            }
+            if (text === 'Ứng dụng') {
+                appsModal.classList.add('show');
+                return;
+            }
+            if (text === 'Đoạn chat mới') {
+                newChatBtnSidebar.click();
+                return;
+            }
+
+            // Only alert for features truly not developed
+            if (['PTNK Tutor', 'Khám phá GPT', 'Dự án'].includes(text)) {
+                alert(`Tính năng "${text}" đang được phát triển!`);
+            }
+        });
+
+        headerSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('show');
+        });
+
+        headerGroupBtn.addEventListener('click', () => {
+            groupModal.classList.add('show');
+        });
+
+        closeGroupModal.addEventListener('click', () => {
+            groupModal.classList.remove('show');
+        });
+
+        groupModal.addEventListener('click', (e) => {
+            if (e.target === groupModal) groupModal.classList.remove('show');
+        });
+
+        function appendMessage(text, isUser, isImage = false, isLoading = false) {
+            // Hide welcome container on first message
+            if (welcomeContainer) welcomeContainer.style.display = 'none';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            if (isLoading) messageDiv.id = 'loading-message';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (isLoading) {
+                contentDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            } else if (isImage) {
+                const img = document.createElement('img');
+                img.src = text;
+                img.style.maxWidth = '100%';
+                img.style.borderRadius = '12px';
+                img.style.marginTop = '10px';
+                contentDiv.appendChild(img);
+            } else if (isUser) {
+                contentDiv.textContent = text;
+            } else {
+                contentDiv.innerHTML = marked.parse(text);
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return messageDiv;
+        }
+
+        async function generateImage(prompt) {
+            const loadingMsg = appendMessage(`🎨 Đang tạo hình ảnh: "${prompt}"...`, false, false, true);
+            try {
+                // Thư viện phong cách nghệ thuật (Artistic Library)
+                const styleRules = [
+                    "extremely detailed", "masterpiece", "high resolution", "8k",
+                    "professional lighting", "cinematic", "photorealistic",
+                    "vibrant colors", "artistic composition", "sharp focus",
+                    "intricate details", "volumetric lighting", "unreal engine 5 style",
+                    "trending on artstation", "highly polished"
+                ];
+                
+                // Tự động phân tích và thêm các từ khóa chuyên nghiệp
+                let enhancedPrompt = prompt;
+                if (!prompt.toLowerCase().includes("style") && !prompt.toLowerCase().includes("art")) {
+                    // Thêm 5 quy luật ngẫu nhiên từ kho tàng để tạo sự đa dạng
+                    const randomRules = styleRules.sort(() => 0.5 - Math.random()).slice(0, 6);
+                    enhancedPrompt += ", " + randomRules.join(", ");
+                }
+                
+                // Sử dụng Pollinations trực tiếp từ Frontend để nhanh và ổn định
+                const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(enhancedPrompt)}?width=1024&height=1024&seed=${Math.floor(Math.random() * 1000000)}&nologo=true`;
+                
+                // Kiểm tra xem ảnh có load được không
+                const img = new Image();
+                img.onload = () => {
+                    loadingMsg.remove();
+                    appendMessage(imageUrl, false, true);
+                };
+                img.onerror = () => {
+                    loadingMsg.remove();
+                    appendMessage("⚠️ Không thể tạo ảnh lúc này. Hãy thử lại với mô tả khác!", false);
+                };
+                img.src = imageUrl;
+                
+            } catch (error) {
+                loadingMsg.remove();
+                appendMessage("❌ Lỗi kết nối máy chủ tạo ảnh.", false);
+            }
+        }
+
+        // Handle sidebar toggles and other nav items
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (item.id === 'nav-settings' || item.id === 'nav-image-gen') return;
+                const text = item.querySelector('span').textContent;
+                alert(`Tính năng "${text}" đang được phát triển!`);
+            });
+        });
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message && !selectedImageBase64) return;
+
+            // Save current image and clear preview
+            const currentImage = selectedImageBase64;
+            if (currentImage) removeImageBtn.click();
+
+            // Lấy thông tin cá nhân hóa
+            const personalData = JSON.parse(localStorage.getItem('vnai_personalization') || '{}');
+            let systemPrompt = "";
+            if (personalData.instructions || personalData.nickname || personalData.job || personalData.tone) {
+                systemPrompt = "--- HƯỚNG DẪN CÁ NHÂN HÓA ---\n";
+                if (personalData.nickname) systemPrompt += `Hãy gọi tôi là: ${personalData.nickname}\n`;
+                if (personalData.job) systemPrompt += `Nghề nghiệp của tôi: ${personalData.job}\n`;
+                if (personalData.bio) systemPrompt += `Thông tin thêm: ${personalData.bio}\n`;
+                if (personalData.tone && personalData.tone !== 'default') {
+                    const tones = {
+                        professional: "Chuyên nghiệp, lịch sự",
+                        friendly: "Thân thiện, gần gũi",
+                        direct: "Thẳng thắn, ngắn gọn",
+                        creative: "Sáng tạo, cá tính"
+                    };
+                    systemPrompt += `Phong cách trả lời: ${tones[personalData.tone]}\n`;
+                }
+                if (personalData.instructions) systemPrompt += `Hướng dẫn thêm: ${personalData.instructions}\n`;
+                systemPrompt += "--- KẾT THÚC HƯỚNG DẪN ---\n\n";
+            }
+
+            // Xử lý thông tin dự án nếu có trong tin nhắn
+            let projectContext = "";
+            const projectMatch = message.match(/\[Dự án: (.*?)\]/);
+            if (projectMatch) {
+                projectContext = `\n--- BỐI CẢNH DỰ ÁN ---\nBạn đang hỗ trợ tôi trong dự án: ${projectMatch[1]}\nHãy đưa ra các câu trả lời liên quan mật thiết đến mục tiêu của dự án này.\n----------------------\n\n`;
+            }
+
+            const fullMessage = systemPrompt + projectContext + message;
+
+            // Display user message with image if exists
+            const userMsgDiv = appendMessage(message, true);
+            if (currentImage) {
+                const img = document.createElement('img');
+                img.src = currentImage;
+                img.className = 'user-image-msg';
+                userMsgDiv.querySelector('.message-content').prepend(img);
+            }
+
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+
+            // Hiển thị trạng thái đang tải
+            const loadingMsg = appendMessage('', false, false, true);
+
+            try {
+                // 1. Gửi tin nhắn lên backend để lưu vào Database (Lưu tin nhắn gốc của user)
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: message,
+                        image: currentImage, // Send image to backend
+                        conversation_id: currentConversationId,
+                        only_save: true
+                    })
+                });
+                
+                const data = await response.json(); 
+                if (!response.ok) {
+                    throw new Error(data.error || "Lỗi lưu trữ dữ liệu");
+                }
+                
+                if (!currentConversationId) {
+                    currentConversationId = data.conversation_id;
+                    loadHistory();
+                }
+
+                // 2. Sử dụng AI để lấy đáp án (Dùng fullMessage có kèm cá nhân hóa)
+                let aiResponseText = "";
+                
+                async function tryGetAI() {
+                    // Tầng 1: Puter AI (Ưu tiên hàng đầu - Không cần API)
+                    if (typeof puter !== 'undefined') {
+                        const puterModels = ['gpt-4o', 'claude-3-5-sonnet', 'gpt-4o-mini', 'gpt-3.5-turbo'];
+                        for (const modelName of puterModels) {
+                            try {
+                                console.log(`Thử Puter model: ${modelName}`);
+                                const aiResp = await puter.ai.chat(fullMessage, { model: modelName });
+                                const text = aiResp.toString();
+                                if (text && text.trim().length > 0) return text;
+                            } catch (e) { console.warn(`Puter ${modelName} lỗi`); }
+                        }
+                    }
+
+                    // Tầng 2: Backend AI (Dùng Gemini/OpenAI Key của bạn)
+                    console.log("Thử Backend AI...");
+                    const fbResponse = await fetch('/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message: fullMessage,
+                            image: currentImage, // Pass image to AI
+                            conversation_id: currentConversationId,
+                            selected_model: selectedModel,
+                            only_save: false
+                        })
+                    });
+                    const fbData = await fbResponse.json();
+                    if (fbResponse.ok && fbData.response) return fbData.response;
+
+                    // Tầng 3: Trực tiếp từ Pollinations (Cứu cánh thép)
+                    console.log("Thử Direct Pollinations...");
+                    const pollModels = ["openai", "mistral", "llama", "qwen", "searchgpt"];
+                    for (const m of pollModels) {
+                        try {
+                            const pollResponse = await fetch('https://text.pollinations.ai/', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    messages: [{role: "user", content: fullMessage}],
+                                    model: m,
+                                    stream: false
+                                })
+                            });
+                            if (pollResponse.ok) {
+                                const text = await pollResponse.text();
+                                if (text && text.trim().length > 0) return text;
+                            }
+                        } catch (e) { console.warn(`Pollinations ${m} lỗi`); }
+                    }
+
+                    throw new Error("Hệ thống AI đang cực kỳ bận. Bạn vui lòng thử lại sau vài giây!");
+                }
+
+                try {
+                    aiResponseText = await tryGetAI();
+                } catch (err) {
+                    aiResponseText = "⚠️ AI đang bận một chút. Bạn hãy thử nhấn F5 hoặc gửi lại tin nhắn nhé!";
+                }
+
+                // 3. Xóa loading và hiển thị đáp án thật
+                loadingMsg.remove();
+                appendMessage(aiResponseText, false);
+                
+                // Lưu đáp án vào DB
+                if (aiResponseText && !aiResponseText.startsWith("⚠️")) {
+                    await fetch('/save_ai_message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            conversation_id: currentConversationId,
+                            content: aiResponseText
+                        })
+                    });
+                }
+
+            } catch (error) {
+                console.error("Chat error:", error);
+                if (loadingMsg) loadingMsg.remove();
+                appendMessage("❌ Lỗi kết nối: " + error.message, false);
+            } finally {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        // New Chat functionality
+        const newChatBtnSidebar = document.getElementById('new-chat-btn-sidebar');
+        const sidebarToggleMain = document.getElementById('sidebar-toggle-main');
+
+        newChatBtnSidebar.addEventListener('click', async () => {
+            currentConversationId = null;
+            chatBox.innerHTML = '';
+            if (welcomeContainer) welcomeContainer.style.display = 'flex';
+            loadHistory();
+            userInput.focus();
+        });
+
+        sidebarToggleMain.addEventListener('click', () => {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('collapsed');
+            
+            if (sidebar.classList.contains('collapsed')) {
+                sidebar.style.width = '60px';
+                document.querySelectorAll('.sidebar span, .history-list, .sidebar-header h1, .nav-section-title, .user-name-status, .upgrade-sidebar-btn').forEach(el => {
+                    el.style.display = 'none';
+                });
+            } else {
+                sidebar.style.width = '260px';
+                document.querySelectorAll('.sidebar span, .history-list, .sidebar-header h1, .nav-section-title, .user-name-status, .upgrade-sidebar-btn').forEach(el => {
+                    el.style.display = 'block';
+                });
+            }
+        });
+
+
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl + Shift + O: New Chat
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o') {
+                e.preventDefault();
+                newChatBtnSidebar.click();
+            }
+            // Ctrl + K: Search
+            if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                openSearchModal();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
