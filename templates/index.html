@@ -831,10 +831,10 @@
         });
 
         // Configure marked options with highlight.js
-        const renderer = new marked.Renderer();
+        const customRenderer = new marked.Renderer();
         
         // Custom renderer for code blocks to add "Copy" button and VS Code look
-        renderer.code = (codeObj, language) => {
+        customRenderer.code = (codeObj, language) => {
             // marked v4+ passes an object, older versions pass a string
             const code = typeof codeObj === 'object' ? codeObj.text : codeObj;
             const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
@@ -853,12 +853,10 @@
             `;
         };
 
-        marked.setOptions({
-            renderer: renderer,
+        marked.use({
+            renderer: customRenderer,
             breaks: true,
-            gfm: true,
-            headerIds: false,
-            mangle: false
+            gfm: true
         });
 
         // Copy Code Function

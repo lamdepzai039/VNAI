@@ -165,11 +165,6 @@ def get_ai_response(user_message, history_list, preferred_model="gpt", image_dat
         key_manager.mark_cooldown(key)
         return None
 
-    except Exception as e:
-        print(f"Lỗi Key {key[:10]}: {e}")
-        key_manager.mark_cooldown(key)
-        return None
-
 def get_fallback_ai(user_message, history_list):
     # Dùng Pollinations với danh sách model đa dạng (Resilient)
     models = ["openai", "mistral", "qwen", "llama", "searchgpt"]
