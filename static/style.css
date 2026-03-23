@@ -243,6 +243,13 @@ textarea {
     padding: 10px 0;
 }
 
+.loading-status-text {
+    font-size: 0.9rem;
+    color: var(--accent-color);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
 .typing-indicator span {
     width: 6px;
     height: 6px;

@@ -8,6 +8,10 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 from openai import OpenAI
+try:
+    from googlesearch import search
+except ImportError:
+    search = None
 
 # Load environment
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -67,20 +71,53 @@ class AIKeyManager:
         self.cooldowns[key] = time.time() + seconds
 
 key_manager = AIKeyManager()
+
+def perform_web_search(query, num_results=5):
+    """Thực hiện tìm kiếm trên web và trả về các đoạn nội dung ngắn"""
+    if not search:
+        return "Lỗi: Thư viện googlesearch chưa được cài đặt."
+    
+    print(f"--- Đang tìm kiếm trên web: {query} ---")
+    results = []
+    try:
+        # Lấy các URL từ Google
+        search_results = search(query, num_results=num_results, lang="vi")
+        for url in search_results:
+            results.append(url)
+        
+        if not results:
+            return "Không tìm thấy kết quả nào trên web."
+            
+        context = "Dưới đây là một số nguồn tin từ web:\n"
+        for i, url in enumerate(results, 1):
+            context += f"{i}. Nguồn: {url}\n"
+        return context
+    except Exception as e:
+        print(f"Lỗi tìm kiếm: {e}")
+        return f"Lỗi tìm kiếm: {str(e)}"
+
 SYSTEM_INSTRUCTION = """Bạn là một trợ lý AI thông minh, đa năng. 
-QUY TẮC QUAN TRỌNG NHẤT: BẠN CÓ KHẢ NĂNG NHÌN VÀ PHÂN TÍCH HÌNH ẢNH. 
+QUY TẮC QUAN TRỌNG NHẤT: 
+1. BẠN CÓ KHẢ NĂNG NHÌN VÀ PHÂN TÍCH HÌNH ẢNH. 
 - Khi người dùng gửi ảnh, bạn PHẢI phân tích và trả lời dựa trên nội dung ảnh đó.
+2. BẠN CÓ KHẢ NĂNG TÌM KIẾM THÔNG TIN TRÊN WEB.
+- Khi người dùng yêu cầu tìm kiếm hoặc hỏi về thông tin mới nhất/thực tế, hãy sử dụng dữ liệu từ kết quả tìm kiếm được cung cấp.
 - Tuyệt đối KHÔNG ĐƯỢC trả lời là 'không thể xem ảnh' hay 'không có chức năng dịch ảnh'.
 - Nếu là văn bản (Tiếng Trung, Anh...), hãy dịch sang Tiếng Việt.
 - Nếu là code/toán, hãy giải chi tiết.
 Hãy luôn trả lời bằng Tiếng Việt mượt mà."""
 
-def get_ai_response(user_message, history_list, preferred_model="gpt", image_data=None):
+def get_ai_response(user_message, history_list, preferred_model="gpt", image_data=None, search_context=None):
     key = key_manager.get_working_key()
     if not key: return None
 
+    # Nếu có dữ liệu tìm kiếm, gộp vào message
+    final_user_message = user_message
+    if search_context:
+        final_user_message = f"Dữ liệu tìm kiếm được từ Web:\n{search_context}\n\nCâu hỏi của người dùng: {user_message}"
+
     print(f"--- Debug Vision ---")
-    print(f"Model: {preferred_model}, Has Image: {image_data is not None}")
+    print(f"Model: {preferred_model}, Has Image: {image_data is not None}, Has Search: {search_context is not None}")
 
     try:
         # Chuẩn bị dữ liệu cho Gemini
@@ -104,7 +141,7 @@ def get_ai_response(user_message, history_list, preferred_model="gpt", image_dat
             except Exception as img_err:
                 print(f"Lỗi chuẩn bị ảnh Gemini: {img_err}")
         
-        parts.append(user_message if user_message else "Phân tích nội dung hình ảnh này.")
+        parts.append(final_user_message if final_user_message else "Phân tích nội dung hình ảnh này.")
 
         # Cấu hình tham số
         generation_config = {
@@ -121,7 +158,7 @@ def get_ai_response(user_message, history_list, preferred_model="gpt", image_dat
                 system_instruction=SYSTEM_INSTRUCTION
             )
             
-            # Gửi yêu cầu Vision
+            # Gửi yêu cầu Vision/Search
             response = model.generate_content(parts, generation_config=generation_config)
             return response.text
         
@@ -137,7 +174,7 @@ def get_ai_response(user_message, history_list, preferred_model="gpt", image_dat
                 messages.append({
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": user_message if user_message else "Phân tích nội dung hình ảnh này."},
+                        {"type": "text", "text": final_user_message if final_user_message else "Phân tích nội dung hình ảnh này."},
                         {"type": "image_url", "image_url": {"url": image_url}}
                     ]
                 })
@@ -145,7 +182,7 @@ def get_ai_response(user_message, history_list, preferred_model="gpt", image_dat
             else:
                 for h in history_list:
                     messages.append({"role": h['role'], "content": h['content']})
-                messages.append({"role": "user", "content": user_message})
+                messages.append({"role": "user", "content": final_user_message})
                 completion = client.chat.completions.create(model="gpt-4o", messages=messages, temperature=0.4)
             
             return completion.choices[0].message.content
@@ -165,14 +202,18 @@ def get_ai_response(user_message, history_list, preferred_model="gpt", image_dat
         key_manager.mark_cooldown(key)
         return None
 
-def get_fallback_ai(user_message, history_list):
+def get_fallback_ai(user_message, history_list, search_context=None):
     # Dùng Pollinations với danh sách model đa dạng (Resilient)
-    models = ["openai", "mistral", "qwen", "llama", "searchgpt"]
+    models = ["searchgpt", "openai", "mistral", "qwen", "llama"]
     
+    final_user_message = user_message
+    if search_context:
+        final_user_message = f"Dữ liệu tìm kiếm được từ Web:\n{search_context}\n\nCâu hỏi của người dùng: {user_message}"
+
     messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
     for h in history_list[-4:]:
         messages.append({"role": h['role'], "content": h['content']})
-    messages.append({"role": "user", "content": user_message})
+    messages.append({"role": "user", "content": final_user_message})
 
     # Thử gọi Pollinations POST
     for m in models:
@@ -188,7 +229,7 @@ def get_fallback_ai(user_message, history_list):
     # Cứu cánh cuối cùng: Pollinations GET (Dành cho tin nhắn ngắn)
     try:
         from urllib.parse import quote
-        safe_msg = quote(user_message[:500])
+        safe_msg = quote(final_user_message[:500])
         r = requests.get(f"https://text.pollinations.ai/{safe_msg}?model=openai", timeout=10)
         if r.status_code == 200: return r.text
     except: pass
@@ -279,11 +320,18 @@ def chat():
     history_list = [{"role": m.role, "content": m.content} for m in reversed(history[:-1])]
     
     preferred_model = data.get("selected_model", "gpt")
-    ai_resp = get_ai_response(msg_text, history_list, preferred_model, image_data)
+    
+    # Logic Web Search (Deep Research)
+    search_context = None
+    if msg_text and ("[Deep Research]" in msg_text or "tìm trên mạng" in msg_text.lower() or "search web" in msg_text.lower()):
+        search_query = msg_text.replace("[Deep Research]", "").strip()
+        search_context = perform_web_search(search_query)
+
+    ai_resp = get_ai_response(msg_text, history_list, preferred_model, image_data, search_context)
     
     if not ai_resp:
         print("Tất cả Key chính đều lỗi hoặc hết hạn mức. Đang thử Pollinations...")
-        ai_resp = get_fallback_ai(msg_text, history_list)
+        ai_resp = get_fallback_ai(msg_text, history_list, search_context)
 
     if ai_resp:
         # Làm sạch đáp án (xóa các thông báo lỗi nếu AI vô tình trả về)

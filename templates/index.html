@@ -1052,7 +1052,7 @@
             contentDiv.className = 'message-content';
             
             if (isLoading) {
-                contentDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+                contentDiv.innerHTML = `<div class="loading-status-text">${text}</div><div class="typing-indicator"><span></span><span></span><span></span></div>`;
             } else if (isImage) {
                 const img = document.createElement('img');
                 img.src = text;
@@ -1175,7 +1175,13 @@
             sendBtn.disabled = true;
 
             // Hiển thị trạng thái đang tải
-            const loadingMsg = appendMessage('', false, false, true);
+            let loadingMsgText = "";
+            if (message.includes("[Deep Research]")) {
+                loadingMsgText = "🔍 Đang tìm kiếm trên Web và nghiên cứu...";
+            } else if (currentImage) {
+                loadingMsgText = "🖼️ Đang phân tích hình ảnh...";
+            }
+            const loadingMsg = appendMessage(loadingMsgText, false, false, true);
 
             try {
                 // 1. Gửi tin nhắn lên backend để lưu vào Database (Lưu tin nhắn gốc của user)
