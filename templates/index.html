@@ -803,7 +803,8 @@
                         if (response.ok) {
                             if (currentConversationId === id) {
                                 currentConversationId = null;
-                                chatBox.innerHTML = '<div class="message ai-message"><div class="message-content">Chào bạn! Tôi là trợ lý AI thông minh. Tôi có thể giúp gì cho bạn hôm nay?</div></div>';
+                                chatBox.innerHTML = '';
+                                if (welcomeContainer) welcomeContainer.style.display = 'flex';
                             }
                             loadHistory();
                         }
@@ -822,18 +823,16 @@
                     } catch (e) { console.error("Error renaming conversation:", e); }
                 }
             } else if (action === 'move') {
-                if (projects.length === 0) {
-                    alert("Bạn chưa có dự án nào để di chuyển vào!");
-                    return;
+                const name = window.prompt("Nhập tên dự án mới để lưu đoạn chat này:");
+                if (name && name.trim()) {
+                    const trimmedName = name.trim();
+                    if (!projects.includes(trimmedName)) {
+                        projects.push(trimmedName);
+                        localStorage.setItem('vnai_projects', JSON.stringify(projects));
+                        renderProjects();
+                    }
+                    alert(`Đã di chuyển vào dự án: ${trimmedName}`);
                 }
-                const projList = projects.join("\n- ");
-                const targetProj = window.prompt(`Nhập tên dự án muốn di chuyển vào:\n- ${projList}`);
-                if (targetProj && projects.includes(targetProj.trim())) {
-                    alert(`Đã di chuyển đoạn chat sang dự án: ${targetProj.trim()}`);
-                    // Logic di chuyển thực tế có thể thêm vào DB sau
-                }
-            } else {
-                alert(`Tính năng "${action}" đang được phát triển!`);
             }
             
             activeMenuHistoryId = null;
@@ -1264,11 +1263,24 @@
         }
 
         // Handle sidebar toggles and other nav items
-        document.querySelectorAll('.nav-item').forEach(item => {
+        document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
             item.addEventListener('click', () => {
-                if (item.id === 'nav-settings' || item.id === 'nav-image-gen') return;
+                // Skip if it has specific ID or already has special logic
+                if (item.id === 'nav-settings' || item.id === 'nav-image-gen' || 
+                    item.id === 'new-chat-btn-sidebar' || item.id === 'add-project-btn') return;
+
                 const text = item.querySelector('span').textContent;
-                alert(`Tính năng "${text}" đang được phát triển!`);
+                
+                // Thay vì alert, chúng ta mở Modal hoặc thực hiện hành động tương ứng
+                if (text === 'Codex') {
+                    openModal('codex-modal');
+                } else if (text === 'Ứng dụng') {
+                    openModal('apps-modal');
+                } else if (text === 'Nghiên cứu chuyên sâu') {
+                    openModal('deep-research-modal');
+                } else if (text === 'Tìm kiếm đoạn chat') {
+                    openSearchModal();
+                }
             });
         });
 
