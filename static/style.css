@@ -71,21 +71,23 @@ body {
 
 .input-wrapper {
     background-color: var(--bg-secondary) !important;
-    border: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
     border-radius: var(--radius-lg) !important;
     padding: 14px 24px !important;
-    box-shadow: none !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
     max-width: 800px;
     margin: 0 auto;
     display: flex;
     align-items: center;
     gap: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .input-wrapper:focus-within {
     background-color: #28292a !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
-    transform: none !important;
+    border-color: rgba(75, 144, 255, 0.3) !important;
+    box-shadow: 0 0 0 1px rgba(75, 144, 255, 0.2), 0 20px 40px rgba(0,0,0,0.4) !important;
+    transform: translateY(-2px) !important;
 }
 
 textarea {
@@ -111,13 +113,14 @@ textarea {
 }
 
 .user-message .message-content {
-    background-color: var(--user-msg-bg) !important;
-    border: none !important;
-    border-radius: 20px 20px 4px 20px !important; /* ChatGPT style rounded corners */
+    background: rgba(47, 47, 47, 0.8) !important;
+    backdrop-filter: blur(5px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 20px !important;
     padding: 12px 20px !important;
-    box-shadow: none !important;
-    max-width: 80%;
-    margin-left: auto; /* Push to the right */
+    max-width: 85%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+    margin-left: auto;
     color: #fff !important;
 }
 
@@ -1678,6 +1681,67 @@ textarea {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin-top: 12px;
+}
+
+/* Light Mode Overrides */
+body.light-theme {
+    --bg-main: #ffffff;
+    --bg-secondary: #f9f9f9;
+    --sidebar-bg: #f3f3f3;
+    --text-main: #212121;
+    --text-muted: #676767;
+    --border-color: #e5e5e5;
+    --hover-color: #e8eaed;
+    --input-bg: #ffffff;
+    --user-msg-bg: #f4f4f4;
+    --modal-bg: #ffffff;
+    --dropdown-bg: #ffffff;
+}
+
+body.light-theme .chat-header, 
+body.light-theme .sidebar {
+    background: rgba(255, 255, 255, 0.8) !important;
+}
+
+body.light-theme .nav-item:hover, 
+body.light-theme .history-item:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-theme .message-content {
+    color: #212121;
+}
+
+/* Markdown Tables Styling */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 15px 0;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    background-color: var(--bg-secondary);
+    font-weight: 600;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+/* KaTeX Adjustment */
+.katex-display {
+    margin: 1em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 /* Scrollbar Styles */

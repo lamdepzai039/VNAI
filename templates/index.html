@@ -11,6 +11,10 @@
     <!-- Highlight.js for syntax highlighting (VS Code style) -->   
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- KaTeX for math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <!-- Puter.js v2 -->
     <script src="https://js.puter.com/v2/"></script>
 </head>
@@ -102,6 +106,12 @@
                     </button>
                 </div>
                 <div class="header-right">
+                    <button class="header-icon-btn" id="theme-toggle-btn" title="Chuyển chế độ Sáng/Tối">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="header-icon-btn" id="clear-chat-btn" title="Xóa màn hình chat">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
                     <button class="header-icon-btn" id="header-group-btn" title="Liên kết nhóm">
                         <i class="fas fa-user-plus"></i>
                     </button>
@@ -1048,6 +1058,38 @@
             if (e.target === groupModal) groupModal.classList.remove('show');
         });
 
+        // Theme Toggle Logic
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        let currentTheme = localStorage.getItem('vnai_theme') || 'dark';
+
+        function applyTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.add('light-theme');
+                document.body.classList.remove('dark-theme');
+                themeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
+            } else {
+                document.body.classList.add('dark-theme');
+                document.body.classList.remove('light-theme');
+                themeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
+            }
+            localStorage.setItem('vnai_theme', theme);
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(currentTheme);
+        });
+
+        document.getElementById('clear-chat-btn').addEventListener('click', () => {
+            if (confirm("Bạn có muốn xóa toàn bộ tin nhắn hiện tại không?")) {
+                chatBox.innerHTML = '';
+                if (welcomeContainer) welcomeContainer.style.display = 'flex';
+                currentConversationId = null;
+            }
+        });
+
+        applyTheme(currentTheme);
+
         function appendMessage(text, isUser, isImage = false, isLoading = false) {
             // Hide welcome container on first message
             if (welcomeContainer) welcomeContainer.style.display = 'none';
@@ -1072,6 +1114,16 @@
                 contentDiv.textContent = text;
             } else {
                 contentDiv.innerHTML = marked.parse(text);
+                // Render KaTeX for AI messages
+                renderMathInElement(contentDiv, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
             }
             
             messageDiv.appendChild(contentDiv);
@@ -1134,41 +1186,10 @@
             const message = userInput.value.trim();
             if (!message && !selectedImageBase64) return;
 
-            // Save current image and clear preview
             const currentImage = selectedImageBase64;
             if (currentImage) removeImageBtn.click();
 
-            // Lấy thông tin cá nhân hóa
-            const personalData = JSON.parse(localStorage.getItem('vnai_personalization') || '{}');
-            let systemPrompt = "";
-            if (personalData.instructions || personalData.nickname || personalData.job || personalData.tone) {
-                systemPrompt = "--- HƯỚNG DẪN CÁ NHÂN HÓA ---\n";
-                if (personalData.nickname) systemPrompt += `Hãy gọi tôi là: ${personalData.nickname}\n`;
-                if (personalData.job) systemPrompt += `Nghề nghiệp của tôi: ${personalData.job}\n`;
-                if (personalData.bio) systemPrompt += `Thông tin thêm: ${personalData.bio}\n`;
-                if (personalData.tone && personalData.tone !== 'default') {
-                    const tones = {
-                        professional: "Chuyên nghiệp, lịch sự",
-                        friendly: "Thân thiện, gần gũi",
-                        direct: "Thẳng thắn, ngắn gọn",
-                        creative: "Sáng tạo, cá tính"
-                    };
-                    systemPrompt += `Phong cách trả lời: ${tones[personalData.tone]}\n`;
-                }
-                if (personalData.instructions) systemPrompt += `Hướng dẫn thêm: ${personalData.instructions}\n`;
-                systemPrompt += "--- KẾT THÚC HƯỚNG DẪN ---\n\n";
-            }
-
-            // Xử lý thông tin dự án nếu có trong tin nhắn
-            let projectContext = "";
-            const projectMatch = message.match(/\[Dự án: (.*?)\]/);
-            if (projectMatch) {
-                projectContext = `\n--- BỐI CẢNH DỰ ÁN ---\nBạn đang hỗ trợ tôi trong dự án: ${projectMatch[1]}\nHãy đưa ra các câu trả lời liên quan mật thiết đến mục tiêu của dự án này.\n----------------------\n\n`;
-            }
-
-            const fullMessage = systemPrompt + projectContext + message;
-
-            // Display user message with image if exists
+            // Hiển thị tin nhắn user
             const userMsgDiv = appendMessage(message, true);
             if (currentImage) {
                 const img = document.createElement('img');
@@ -1182,115 +1203,86 @@
             userInput.disabled = true;
             sendBtn.disabled = true;
 
-            // Hiển thị trạng thái đang tải
-            const loadingMsg = appendMessage('', false, false, true);
+            // Lấy thông tin cá nhân hóa
+            const personalData = JSON.parse(localStorage.getItem('vnai_personalization') || '{}');
+
+            // Tạo tin nhắn AI rỗng để chuẩn bị stream
+            const aiMsgDiv = appendMessage('', false, false, true);
+            const aiContentDiv = aiMsgDiv.querySelector('.message-content');
+            let fullAiResponse = "";
 
             try {
-                // 1. Gửi tin nhắn lên backend để lưu vào Database (Lưu tin nhắn gốc của user)
-                const response = await fetch('/chat', {
+                const response = await fetch('/chat_stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         message: message,
-                        image: currentImage, // Send image to backend
+                        image: currentImage,
                         conversation_id: currentConversationId,
-                        only_save: true
+                        selected_model: selectedModel,
+                        personalization: personalData
                     })
                 });
-                
-                const data = await response.json(); 
-                if (!response.ok) {
-                    throw new Error(data.error || "Lỗi lưu trữ dữ liệu");
-                }
-                
-                if (!currentConversationId) {
-                    currentConversationId = data.conversation_id;
-                    loadHistory();
-                }
 
-                // 2. Sử dụng AI để lấy đáp án (Dùng fullMessage có kèm cá nhân hóa)
-                let aiResponseText = "";
+                if (!response.ok) throw new Error("Lỗi kết nối Server");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
                 
-                async function tryGetAI() {
-                    // Tầng 1: Puter AI (Ưu tiên hàng đầu - Không cần API)
-                    if (typeof puter !== 'undefined') {
-                        const puterModels = ['gpt-4o', 'claude-3-5-sonnet', 'gpt-4o-mini', 'gpt-3.5-turbo'];
-                        for (const modelName of puterModels) {
+                // Xóa typing indicator khi bắt đầu nhận dữ liệu
+                aiContentDiv.innerHTML = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
                             try {
-                                console.log(`Thử Puter model: ${modelName}`);
-                                const aiResp = await puter.ai.chat(fullMessage, { model: modelName });
-                                const text = aiResp.toString();
-                                if (text && text.trim().length > 0) return text;
-                            } catch (e) { console.warn(`Puter ${modelName} lỗi`); }
+                                const data = JSON.parse(line.substring(6));
+                                
+                                if (data.error) {
+                                    aiContentDiv.innerHTML = `<span style="color: #ff5546;">❌ Lỗi: ${data.error}</span>`;
+                                    break;
+                                }
+
+                                if (data.content) {
+                                    fullAiResponse += data.content;
+                                    aiContentDiv.innerHTML = marked.parse(fullAiResponse);
+                                    
+                                    // Render KaTeX for partial content
+                                    renderMathInElement(aiContentDiv, {
+                                        delimiters: [
+                                            {left: '$$', right: '$$', display: true},
+                                            {left: '$', right: '$', display: false}
+                                        ],
+                                        throwOnError: false
+                                    });
+                                    
+                                    chatBox.scrollTop = chatBox.scrollHeight;
+                                }
+
+                                if (data.conversation_id && !currentConversationId) {
+                                    currentConversationId = data.conversation_id;
+                                    // Gọi AI tạo tiêu đề thông minh sau tin nhắn đầu tiên
+                                    fetch(`/generate_title/${currentConversationId}`, { method: 'POST' })
+                                        .then(() => loadHistory());
+                                }
+
+                                if (data.done) {
+                                    if (data.title) loadHistory(); 
+                                }
+                            } catch (e) { console.error("JSON parse error in stream:", e); }
                         }
                     }
-
-                    // Tầng 2: Backend AI (Dùng Gemini/OpenAI Key của bạn)
-                    console.log("Thử Backend AI...");
-                    const fbResponse = await fetch('/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            message: fullMessage,
-                            image: currentImage, // Pass image to AI
-                            conversation_id: currentConversationId,
-                            selected_model: selectedModel,
-                            only_save: false
-                        })
-                    });
-                    const fbData = await fbResponse.json();
-                    if (fbResponse.ok && fbData.response) return fbData.response;
-
-                    // Tầng 3: Trực tiếp từ Pollinations (Cứu cánh thép)
-                    console.log("Thử Direct Pollinations...");
-                    const pollModels = ["openai", "mistral", "llama", "qwen", "searchgpt"];
-                    for (const m of pollModels) {
-                        try {
-                            const pollResponse = await fetch('https://text.pollinations.ai/', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    messages: [{role: "user", content: fullMessage}],
-                                    model: m,
-                                    stream: false
-                                })
-                            });
-                            if (pollResponse.ok) {
-                                const text = await pollResponse.text();
-                                if (text && text.trim().length > 0) return text;
-                            }
-                        } catch (e) { console.warn(`Pollinations ${m} lỗi`); }
-                    }
-
-                    throw new Error("Hệ thống AI đang cực kỳ bận. Bạn vui lòng thử lại sau vài giây!");
-                }
-
-                try {
-                    aiResponseText = await tryGetAI();
-                } catch (err) {
-                    aiResponseText = "⚠️ AI đang bận một chút. Bạn hãy thử nhấn F5 hoặc gửi lại tin nhắn nhé!";
-                }
-
-                // 3. Xóa loading và hiển thị đáp án thật
-                loadingMsg.remove();
-                appendMessage(aiResponseText, false);
-                
-                // Lưu đáp án vào DB
-                if (aiResponseText && !aiResponseText.startsWith("⚠️")) {
-                    await fetch('/save_ai_message', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            conversation_id: currentConversationId,
-                            content: aiResponseText
-                        })
-                    });
                 }
 
             } catch (error) {
-                console.error("Chat error:", error);
-                if (loadingMsg) loadingMsg.remove();
-                appendMessage("❌ Lỗi kết nối: " + error.message, false);
+                console.error("Stream error:", error);
+                aiContentDiv.innerHTML = `<span style="color: #ff5546;">❌ Lỗi: ${error.message}</span>`;
             } finally {
                 userInput.disabled = false;
                 sendBtn.disabled = false;

@@ -196,7 +196,175 @@ def get_fallback_ai(user_message, history_list):
 
     return None
 
+def get_ai_response_stream(user_message, history_list, preferred_model="gpt", image_data=None, custom_system=None):
+    if custom_system is None: custom_system = SYSTEM_INSTRUCTION
+    key = key_manager.get_working_key()
+    if not key: yield "error:No working API key found." ; return
+
+    try:
+        if preferred_model == "gemini" and not key.startswith("sk-"):
+            genai.configure(api_key=key)
+            model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=custom_system)
+            
+            parts = []
+            if image_data:
+                if "data:" in image_data and ";base64," in image_data:
+                    mime_type = image_data.split(";")[0].split(":")[1]
+                    raw_data = image_data.split(",")[1]
+                else:
+                    mime_type = "image/jpeg"
+                    raw_data = image_data
+                parts.append({"mime_type": mime_type, "data": raw_data})
+            
+            parts.append(user_message if user_message else "Phân tích nội dung hình ảnh này.")
+            
+            response = model.generate_content(parts, stream=True)
+            for chunk in response:
+                if chunk.text: yield chunk.text
+        
+        elif key.startswith("sk-"):
+            client = OpenAI(api_key=key)
+            messages = [{"role": "system", "content": custom_system}]
+            
+            if image_data:
+                image_url = image_data if image_data.startswith("data:") else f"data:image/jpeg;base64,{image_data}"
+                messages.append({
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_message if user_message else "Phân tích nội dung hình ảnh này."},
+                        {"type": "image_url", "image_url": {"url": image_url}}
+                    ]
+                })
+            else:
+                for h in history_list:
+                    messages.append({"role": h['role'], "content": h['content']})
+                messages.append({"role": "user", "content": user_message})
+            
+            stream = client.chat.completions.create(model="gpt-4o", messages=messages, stream=True)
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        else:
+            # Fallback to Pollinations
+            yield get_fallback_ai(user_message, history_list)
+            
+    except Exception as e:
+        print(f"Streaming Error: {e}")
+        yield f"error: {str(e)}"
+
 # --- Routes ---
+@app.route("/generate_title/<int:conv_id>", methods=["POST"])
+def generate_title(conv_id):
+    if 'user_id' not in flask_session: return jsonify({"error": "Unauthorized"}), 401
+    
+    conv = Conversation.query.get(conv_id)
+    if not conv or conv.user_id != flask_session['user_id']:
+        return jsonify({"error": "Not found"}), 404
+        
+    # Lấy tin nhắn đầu tiên của user để tạo tiêu đề
+    first_msg = Message.query.filter_by(conversation_id=conv_id, role='user').first()
+    if not first_msg: return jsonify({"status": "no_messages"})
+    
+    key = key_manager.get_working_key()
+    if not key: return jsonify({"error": "No key"}), 500
+    
+    try:
+        title_prompt = f"Tạo một tiêu đề cực kỳ ngắn gọn (tối đa 5 từ) cho cuộc trò chuyện bắt đầu bằng câu này: '{first_msg.content}'. Trả lời chỉ bằng tiêu đề, không thêm gì khác."
+        
+        if key.startswith("sk-"):
+            client = OpenAI(api_key=key)
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": title_prompt}],
+                max_tokens=20
+            )
+            new_title = resp.choices[0].message.content.strip().strip('"')
+        else:
+            genai.configure(api_key=key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            resp = model.generate_content(title_prompt)
+            new_title = resp.text.strip().strip('"')
+            
+        if new_title:
+            conv.title = new_title
+            db.session.commit()
+            return jsonify({"title": new_title})
+            
+    except Exception as e:
+        print(f"Auto-title error: {e}")
+        
+    return jsonify({"status": "failed"})
+
+@app.route("/chat_stream", methods=["POST"])
+def chat_stream():
+    if 'user_id' not in flask_session: return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.json
+    msg_text = data.get("message")
+    image_data = data.get("image")
+    conv_id = data.get("conversation_id")
+    preferred_model = data.get("selected_model", "gpt")
+    personalization = data.get("personalization", {})
+
+    # Tích hợp cá nhân hóa vào SYSTEM_INSTRUCTION
+    custom_system = SYSTEM_INSTRUCTION
+    if personalization:
+        instr = personalization.get("instructions", "")
+        nickname = personalization.get("nickname", "")
+        job = personalization.get("job", "")
+        bio = personalization.get("bio", "")
+        tone = personalization.get("tone", "default")
+        
+        personal_block = "\n\n--- THÔNG TIN CÁ NHÂN HÓA NGƯỜI DÙNG ---\n"
+        if nickname: personal_block += f"- Tên gọi người dùng: {nickname}\n"
+        if job: personal_block += f"- Nghề nghiệp: {job}\n"
+        if bio: personal_block += f"- Thông tin thêm: {bio}\n"
+        if tone != "default":
+            tones = {"professional": "Chuyên nghiệp", "friendly": "Thân thiện", "direct": "Thẳng thắn", "creative": "Sáng tạo"}
+            personal_block += f"- Phong cách phản hồi: {tones.get(tone, tone)}\n"
+        if instr: personal_block += f"- Hướng dẫn đặc biệt: {instr}\n"
+        
+        custom_system += personal_block
+
+    if not conv_id:
+        conv = Conversation(user_id=flask_session['user_id'])
+        db.session.add(conv)
+        db.session.commit()
+        conv_id = conv.id
+    else:
+        conv = Conversation.query.get(conv_id)
+
+    # Save user message
+    user_msg = Message(content=msg_text if msg_text else "[Hình ảnh]", role='user', conversation_id=conv_id)
+    db.session.add(user_msg)
+    db.session.commit()
+
+    # Get history
+    history = Message.query.filter_by(conversation_id=conv_id).order_by(Message.timestamp.desc()).limit(10).all()
+    history_list = [{"role": m.role, "content": m.content} for m in reversed(history[:-1])]
+
+    def generate():
+        full_response = ""
+        # Sử dụng custom_system thay vì SYSTEM_INSTRUCTION mặc định
+        for chunk in get_ai_response_stream(msg_text, history_list, preferred_model, image_data, custom_system):
+            if chunk.startswith("error:"):
+                yield f"data: {json.dumps({'error': chunk[6:]})}\n\n"
+                return
+            full_response += chunk
+            yield f"data: {json.dumps({'content': chunk, 'conversation_id': conv_id})}\n\n"
+        
+        # Save AI response at the end
+        with app.app_context():
+            ai_msg = Message(content=full_response, role='assistant', conversation_id=conv_id)
+            db.session.add(ai_msg)
+            current_conv = Conversation.query.get(conv_id)
+            if current_conv.title == "Cuộc trò chuyện mới" and msg_text:
+                current_conv.title = msg_text[:30] + "..."
+            db.session.commit()
+            yield f"data: {json.dumps({'done': True, 'title': current_conv.title})}\n\n"
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
 @app.route("/")
 def index():
     try:
