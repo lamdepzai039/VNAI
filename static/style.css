@@ -69,6 +69,7 @@ body {
     background: transparent !important;
 }
 
+/* Input Wrapper Enhanced Focus */
 .input-wrapper {
     background-color: var(--bg-secondary) !important;
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
@@ -80,7 +81,21 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.input-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent-gradient);
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
 }
 
 .input-wrapper:focus-within {
@@ -89,6 +104,12 @@ body {
     box-shadow: 0 0 0 1px rgba(75, 144, 255, 0.2), 0 20px 40px rgba(0,0,0,0.4) !important;
     transform: translateY(-2px) !important;
 }
+
+.input-wrapper:focus-within::after {
+    transform: scaleX(1);
+}
+
+/* AI Typing Animation Enhancement */
 
 textarea {
     font-size: 1.1rem !important;
@@ -100,6 +121,12 @@ textarea {
     padding: 24px 15% !important;
     max-width: 900px;
     margin: 0 auto;
+    animation: messageIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes messageIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .message-content {
@@ -491,14 +518,64 @@ body {
     align-items: center;
     justify-content: center;
     height: 100%;
-    padding-bottom: 100px;
+    padding: 0 20px;
+    animation: fadeIn 0.8s ease-out;
 }
 
 .welcome-title {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
     font-weight: 600;
-    color: var(--text-main);
+    margin-bottom: 40px;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
     text-align: center;
+}
+
+.starter-prompts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    width: 100%;
+}
+
+.prompt-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.prompt-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--accent-color);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.prompt-card i {
+    font-size: 1.4rem;
+    color: var(--accent-color);
+}
+
+.prompt-card span {
+    font-size: 0.95rem;
+    color: var(--text-main);
+    line-height: 1.4;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Input Actions Style */
@@ -1334,9 +1411,19 @@ body {
 }
 
 .history-item-title {
+    flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.history-group-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 20px 10px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .history-item-actions {
